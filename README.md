@@ -56,7 +56,25 @@ The frames and detection results used in the paper can be downloaded from this l
     ./data/binaural_audios/000137.wav,./data/frames/000137.mp4,82
     ```
     
-    For each row, it stores the information: AUDIO_PATH,FRAMES_PATH,NUMBER_FRAMES
+    For each row, it stores the information: ``AUDIO_PATH,FRAMES_PATH,NUMBER_FRAMES``
 
     c. Detect objects in video frames. We used object detector trained by Ruohan used in his Cosep project (see [CoSep repo](URL "https://github.com/rhgao/co-separation")). The detected objects for each video are stored in a .npy file.
 
+3. Train the non-positional model for warming up. The trained MUSIC model paths used in the paper can be downloaded from this link.
+```
+./scripts/train_mono.sh
+```
+4. Train the position-guided audio-visual separation model.
+```
+./scripts/train.sh
+```
+5. During training, visualizations are saved in HTML format under data/ckpt/MODEL_ID/visualization/.
+
+## Evaluation
+1. Evaluate the trained LAVSS model. Our pre-trained model can be downloaded from here. Please put it into data/ckpt.
+```
+./scripts/eval.sh
+```
+
+## Acknowledgement
+We borrowed a lot of code from [SoP](URL "https://github.com/hangzhaomit/Sound-of-Pixels") and [CCoL](URL "https://github.com/YapengTian/CCOL-CVPR21"), and used detector from Ruohan' [CoSep](URL "https://github.com/rhgao/co-separation"). We thank the authors for sharing their code. If you use our codes, please also cite their nice works.
