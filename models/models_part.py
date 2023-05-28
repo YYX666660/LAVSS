@@ -1,6 +1,6 @@
 import torch
 import torchvision
-from .networks_attention import Resnet18, AudioVisual5layerUNet, AudioVisual7layerUNet, weights_init
+from .networks import Resnet18, AudioVisual5layerUNet, AudioVisual7layerUNet, weights_init
 
 
 class ModelBuilder():
@@ -29,6 +29,8 @@ class ModelBuilder():
 
         if len(weights) > 0:
             print('Loading weights for UNet')
-            net.load_state_dict(torch.load(weights), strict=True)
+            # 加入部分层导入
+            weight = torch.load(weights)
+            part_weight = {k: v for k, v in weight.items() if k not in ['audionet_convlayer1.0.weight', 'audionet_convlayer1.0.bias', 'audionet_convlayer1.1.weight', 'audionet_convlayer1.1.bias', 'audionet_convlayer1.1.running_mean', 'audionet_convlayer1.1.running_var', 'audionet_convlayer1.1.num_batches_tracked']}
+            net.load_state_dict(part_weight, strict=False)
         return net
-
