@@ -121,6 +121,7 @@ class Resnet18(nn.Module):
             x = F.adaptive_max_pool2d(x, 1)
         elif self.pool_type == 'conv1x1':
             x = self.conv1x1(x)             # [128,7,7]
+            x_ori = x
         else:
             return x #no pooling and conv1x1, directly return the feature map
 
@@ -129,7 +130,7 @@ class Resnet18(nn.Module):
             x = self.fc(x)
             if self.pool_type == 'conv1x1':
                 x = x.view(x.size(0), -1, 1, 1) #expand dimension if using conv1x1 + fc to reduce dimension  [512,1,1]
-            return x
+            return x, x_ori
         else:
             return x
 
@@ -155,13 +156,16 @@ class AudioVisual7layerUNet(nn.Module):
         self.audionet_upconvlayer7 = unet_upconv(ngf * 2, output_nc, True) #outermost layer use a sigmoid to bound the mask
 
         # attention layers
-        self.attention1 = CrossAttention(in_channels=512, emb_dim=512)
-        self.attention2 = CrossAttention(in_channels=512, emb_dim=512)
-        self.attention3 = CrossAttention(in_channels=512, emb_dim=512)
+        self.attention1 = CrossAttention(in_channels=512, emb_dim=128)
+        self.attention2 = CrossAttention(in_channels=512, emb_dim=128)
+        self.attention3 = CrossAttention(in_channels=512, emb_dim=128)
+        self.attention4 = CrossAttention(in_channels=256, emb_dim=128)
+        self.attention5 = CrossAttention(in_channels=128, emb_dim=128)
+        self.attention6 = CrossAttention(in_channels=64, emb_dim=128)
 
 
     # 加在上采样的block中
-    def forward(self, x, visual_feat):
+    def forward(self, x, visual_feat, visual_feat_ori):
         audio_conv1feature = self.audionet_convlayer1(x)
         audio_conv2feature = self.audionet_convlayer2(audio_conv1feature)
         audio_conv3feature = self.audionet_convlayer3(audio_conv2feature)
@@ -173,14 +177,17 @@ class AudioVisual7layerUNet(nn.Module):
         visual_feat = visual_feat.repeat(1, 1, audio_conv7feature.shape[2], audio_conv7feature.shape[3])        # [512,2,2]
         audioVisual_feature = torch.cat((visual_feat, audio_conv7feature), dim=1)
         audio_upconv1feature = self.audionet_upconvlayer1(audioVisual_feature)
-        audio_upconv1feature = audio_upconv1feature + self.attention1(audio_upconv1feature, visual_feat)
+        audio_upconv1feature = audio_upconv1feature + self.attention1(audio_upconv1feature, visual_feat_ori)
         audio_upconv2feature = self.audionet_upconvlayer2(torch.cat((audio_upconv1feature, audio_conv6feature), dim=1))
-        audio_upconv2feature = audio_upconv2feature + self.attention2(audio_upconv2feature, visual_feat)
+        audio_upconv2feature = audio_upconv2feature + self.attention2(audio_upconv2feature, visual_feat_ori)
         audio_upconv3feature = self.audionet_upconvlayer3(torch.cat((audio_upconv2feature, audio_conv5feature), dim=1))
-        audio_upconv3feature = audio_upconv3feature + self.attention3(audio_upconv3feature, visual_feat)
+        audio_upconv3feature = audio_upconv3feature + self.attention3(audio_upconv3feature, visual_feat_ori)
         audio_upconv4feature = self.audionet_upconvlayer4(torch.cat((audio_upconv3feature, audio_conv4feature), dim=1))
+        audio_upconv4feature = audio_upconv4feature + self.attention4(audio_upconv4feature, visual_feat_ori)
         audio_upconv5feature = self.audionet_upconvlayer5(torch.cat((audio_upconv4feature, audio_conv3feature), dim=1))
+        audio_upconv5feature = audio_upconv5feature + self.attention5(audio_upconv5feature, visual_feat_ori)
         audio_upconv6feature = self.audionet_upconvlayer6(torch.cat((audio_upconv5feature, audio_conv2feature), dim=1))
+        audio_upconv6feature = audio_upconv6feature + self.attention6(audio_upconv6feature, visual_feat_ori)
         mask_prediction = self.audionet_upconvlayer7(torch.cat((audio_upconv6feature, audio_conv1feature), dim=1))
         return mask_prediction
 
