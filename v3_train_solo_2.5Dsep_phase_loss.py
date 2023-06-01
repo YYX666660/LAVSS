@@ -127,7 +127,8 @@ class NetWrapper(torch.nn.Module):
         err_time = calc_time_loss(audio_mix_l, pred_masks, batch_data, args)
         err_time_r = calc_time_loss(audio_mix_r, pred_masks_r, batch_data, args)
 
-        loss = (err + err_r) + (err_2 + err_r_2) + (err_time + err_time_r) * 0.001
+        loss = (1/3) * (err + err_r) + (1/3) * (err_2 + err_r_2) + (1/3) * (err_time + err_time_r) 
+        # loss = (1/3) * (err + err_r) + (1/3) * (err_2 + err_r_2) + (1/3) * (err_time + err_time_r)
 
         return err, err_r, loss, \
             {'pred_masks': pred_masks, 'gt_masks': gt_masks,
@@ -159,14 +160,18 @@ def calc_time_loss(audio_mix, mask, batch_data, args):
     target = torch.stack([audios[0][:, 0:L], audios[1][:, 0:L]], 1)     # [B, 2, 65535]
 
     # cal SI-SNR Loss
-    sisnr_loss = 0.
-    loss_list = torch.zeros(B)
-    for b in range(B):
-        loss_0 = cal_SISNR(preds[b, 0], target[b, 0])
-        loss_1 = cal_SISNR(preds[b, 1], target[b, 1])
-        loss_list[b] = (loss_0 + loss_1) / 2
+    # sisnr_loss = 0.
+    # loss_list = torch.zeros(B)
+    # for b in range(B):
+    #     loss_0 = cal_SISNR(preds[b, 0], target[b, 0])
+    #     loss_1 = cal_SISNR(preds[b, 1], target[b, 1])
+    #     loss_list[b] = (loss_0 + loss_1) / 2
 
-    sisnr_loss = torch.mean(loss_list)
+    # sisnr_loss = torch.mean(loss_list)
+
+    # cal L1 time loss
+    crit = criterion.L1Loss()
+    sisnr_loss = crit(preds, target).reshape(1)
     return sisnr_loss
 
 def cal_SISNR(preds, target):
