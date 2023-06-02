@@ -6,7 +6,7 @@ class ArgParser(object):
     def __init__(self):
         parser = argparse.ArgumentParser()
         # Model related arguments
-        parser.add_argument('--id', default='withoutpos_attention_independent_up_three_use_repeated_visual',                         # 改
+        parser.add_argument('--id', default='withoutpos_phase_orinet_add_l2_and_time_SISNRloss_onehalvethree',                         # 改
                             help="a name for identifying the model")
         parser.add_argument('--num_mix', default=2, type=int,
                             help="number of sounds to mix")
@@ -63,7 +63,7 @@ class ArgParser(object):
                             help='number of gpus to use')
         parser.add_argument('--gpu_ids', type=str, default='0,1',
                             help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
-        parser.add_argument('--batch_size_per_gpu', default=32, type=int,
+        parser.add_argument('--batch_size_per_gpu', default=28, type=int,
                             help='input batch size')
         parser.add_argument('--workers', default=12, type=int,      # 改 原32 现12，不能开太大了，否则会占太多CPU
                             help='number of data loading workers')
@@ -89,7 +89,7 @@ class ArgParser(object):
         # Misc arguments
         parser.add_argument('--seed', default=1234, type=int,
                             help='manual seed')
-        parser.add_argument('--ckpt', default='./v2_ckpt_phase',
+        parser.add_argument('--ckpt', default='./v3_ckpt_loss',
                             help='folder to output checkpoints')
         parser.add_argument('--disp_iter', type=int, default=10,
                             help='frequency to display')
@@ -122,7 +122,7 @@ class ArgParser(object):
         parser.add_argument('--lr_unet', type=float, default=1e-3, help='learning rate for unet')
 
         parser.add_argument('--lr_steps',
-                            nargs='+', type=int, default=[30, 50],
+                            nargs='+', type=int, default=[40, 60],
                             help='steps to drop LR in epochs')          # 改 原来是[40,60]
         parser.add_argument('--learning_rate_decrease_itr', type=int, default=5, help='how often is the learning rate decreased by six percent')
         parser.add_argument('--decay_factor', type=float, default=0.9, help='learning rate decay factor')
