@@ -156,6 +156,7 @@ class AudioVisual7layerUNet(nn.Module):
         self.audionet_upconvlayer7 = unet_upconv(ngf * 2, output_nc, True) #outermost layer use a sigmoid to bound the mask
 
         # attention layers
+        self.attention0 = CrossAttention(in_channels=512, emb_dim=128)
         self.attention1 = CrossAttention(in_channels=512, emb_dim=128)
         self.attention2 = CrossAttention(in_channels=512, emb_dim=128)
         self.attention3 = CrossAttention(in_channels=512, emb_dim=128)
@@ -175,20 +176,33 @@ class AudioVisual7layerUNet(nn.Module):
         audio_conv7feature = self.audionet_convlayer7(audio_conv6feature)       # [512,2,2]
 
         visual_feat = visual_feat.repeat(1, 1, audio_conv7feature.shape[2], audio_conv7feature.shape[3])        # [512,2,2]
-        audioVisual_feature = torch.cat((visual_feat, audio_conv7feature), dim=1)
-        audio_upconv1feature = self.audionet_upconvlayer1(audioVisual_feature)
+        audioVisual_feature = torch.cat((visual_feat, audio_conv7feature), dim=1)   # [1024,2,2]
+        audio_upconv1feature = self.audionet_upconvlayer1(audioVisual_feature)      # [512,4,4]
+        audio_upconv2feature = self.audionet_upconvlayer2(torch.cat((audio_upconv1feature, audio_conv6feature), dim=1)) # [512,8,8]
+        audio_upconv3feature = self.audionet_upconvlayer3(torch.cat((audio_upconv2feature, audio_conv5feature), dim=1)) # [512,16,16]
+        audio_upconv4feature = self.audionet_upconvlayer4(torch.cat((audio_upconv3feature, audio_conv4feature), dim=1)) # [256,32,32]
+        audio_upconv5feature = self.audionet_upconvlayer5(torch.cat((audio_upconv4feature, audio_conv3feature), dim=1)) # [128,64,64]
+        audio_upconv6feature = self.audionet_upconvlayer6(torch.cat((audio_upconv5feature, audio_conv2feature), dim=1)) # [64,128,128]
+
+        # attention部分
+        audio_upconv0feature = audio_conv7feature + self.attention0(audio_conv7feature, visual_feat_ori)    # [512,2,2]
         audio_upconv1feature = audio_upconv1feature + self.attention1(audio_upconv1feature, visual_feat_ori)
-        audio_upconv2feature = self.audionet_upconvlayer2(torch.cat((audio_upconv1feature, audio_conv6feature), dim=1))
         audio_upconv2feature = audio_upconv2feature + self.attention2(audio_upconv2feature, visual_feat_ori)
-        audio_upconv3feature = self.audionet_upconvlayer3(torch.cat((audio_upconv2feature, audio_conv5feature), dim=1))
         audio_upconv3feature = audio_upconv3feature + self.attention3(audio_upconv3feature, visual_feat_ori)
-        audio_upconv4feature = self.audionet_upconvlayer4(torch.cat((audio_upconv3feature, audio_conv4feature), dim=1))
         audio_upconv4feature = audio_upconv4feature + self.attention4(audio_upconv4feature, visual_feat_ori)
-        audio_upconv5feature = self.audionet_upconvlayer5(torch.cat((audio_upconv4feature, audio_conv3feature), dim=1))
         audio_upconv5feature = audio_upconv5feature + self.attention5(audio_upconv5feature, visual_feat_ori)
-        audio_upconv6feature = self.audionet_upconvlayer6(torch.cat((audio_upconv5feature, audio_conv2feature), dim=1))
         audio_upconv6feature = audio_upconv6feature + self.attention6(audio_upconv6feature, visual_feat_ori)
-        mask_prediction = self.audionet_upconvlayer7(torch.cat((audio_upconv6feature, audio_conv1feature), dim=1))
+
+        # 融合部分
+        up_fusion_0 = self.audionet_upconvlayer1(torch.cat((audio_upconv0feature, visual_feat), dim=1))
+        up_fusion_1 = self.audionet_upconvlayer2(torch.cat((up_fusion_0, audio_upconv1feature), dim=1))
+        up_fusion_2 = self.audionet_upconvlayer3(torch.cat((up_fusion_1, audio_upconv2feature), dim=1))
+        up_fusion_3 = self.audionet_upconvlayer4(torch.cat((up_fusion_2, audio_upconv3feature), dim=1))
+        up_fusion_4 = self.audionet_upconvlayer5(torch.cat((up_fusion_3, audio_upconv4feature), dim=1))
+        up_fusion_5 = self.audionet_upconvlayer6(torch.cat((up_fusion_4, audio_upconv5feature), dim=1))
+        mask_prediction = self.audionet_upconvlayer7(torch.cat((up_fusion_5, audio_upconv6feature), dim=1))
+        # 这样的话最后一层连不了
+        # mask_prediction = self.audionet_upconvlayer7(torch.cat((audio_upconv6feature, audio_conv1feature), dim=1))  # [1,256,256]
         return mask_prediction
 
 
