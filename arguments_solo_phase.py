@@ -6,7 +6,7 @@ class ArgParser(object):
     def __init__(self):
         parser = argparse.ArgumentParser()
         # Model related arguments
-        parser.add_argument('--id', default='withoutpos_se_attention_at_bottomneck',                         # 改
+        parser.add_argument('--id', default='withoutpos_se_attention_three_down_block',                         # 改
                             help="a name for identifying the model")
         parser.add_argument('--num_mix', default=2, type=int,
                             help="number of sounds to mix")

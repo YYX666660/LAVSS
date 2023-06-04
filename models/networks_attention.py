@@ -76,7 +76,21 @@ class SE(nn.Module):
         y = self.sig(y)
         y = y.view(b, c, 1, 1)
         return x * y.expand_as(x)
-        
+
+class multi_scale_attention(nn.Module):
+    def __init__(self, c1):
+        super(multi_scale_attention, self).__init__()#c*1*1
+        self.half_conv = create_conv(1024, 512, 1, 0)
+        self.half_conv.apply(weights_init)
+        self.se = SE(c1)
+    
+    def forward(self, y, x):
+        y = y.repeat(1, 1, x.shape[2], x.shape[3])
+        x = torch.cat((y, x), dim=1)
+        x = self.half_conv(x)
+        x = self.se(x)
+        return x
+
 
 def unet_conv(input_nc, output_nc, norm_layer=nn.BatchNorm2d):
     downconv = nn.Conv2d(input_nc, output_nc, kernel_size=4, stride=2, padding=1)
@@ -178,20 +192,27 @@ class AudioVisual7layerUNet(nn.Module):
         self.audionet_upconvlayer7 = unet_upconv(ngf * 2, output_nc, True) #outermost layer use a sigmoid to bound the mask
 
         self.se_layer = SE(1024)
+        self.se_layer_6 = multi_scale_attention(512)
+        self.se_layer_5 = multi_scale_attention(512)
 
     # 加在上采样的block中
-    def forward(self, x, visual_feat):
+    def forward(self, x, visual_feat_ori):
         audio_conv1feature = self.audionet_convlayer1(x)
         audio_conv2feature = self.audionet_convlayer2(audio_conv1feature)
         audio_conv3feature = self.audionet_convlayer3(audio_conv2feature)
         audio_conv4feature = self.audionet_convlayer4(audio_conv3feature)
-        audio_conv5feature = self.audionet_convlayer5(audio_conv4feature)
-        audio_conv6feature = self.audionet_convlayer6(audio_conv5feature)
+        audio_conv5feature = self.audionet_convlayer5(audio_conv4feature)       # [512,8,8]
+        audio_conv6feature = self.audionet_convlayer6(audio_conv5feature)       # [512,4,4]
         audio_conv7feature = self.audionet_convlayer7(audio_conv6feature)       # [512,2,2]
 
-        visual_feat = visual_feat.repeat(1, 1, audio_conv7feature.shape[2], audio_conv7feature.shape[3])        # [512,2,2]
+        visual_feat = visual_feat_ori.repeat(1, 1, audio_conv7feature.shape[2], audio_conv7feature.shape[3])        # [512,2,2]
         audioVisual_feature = torch.cat((visual_feat, audio_conv7feature), dim=1)
         audioVisual_feature = self.se_layer(audioVisual_feature)
+
+        # 多尺度特征
+        audio_conv6feature = self.se_layer_6(visual_feat_ori, audio_conv6feature)
+        audio_conv5feature = self.se_layer_5(visual_feat_ori, audio_conv5feature)
+
         audio_upconv1feature = self.audionet_upconvlayer1(audioVisual_feature)
         audio_upconv2feature = self.audionet_upconvlayer2(torch.cat((audio_upconv1feature, audio_conv6feature), dim=1))
         audio_upconv3feature = self.audionet_upconvlayer3(torch.cat((audio_upconv2feature, audio_conv5feature), dim=1))
