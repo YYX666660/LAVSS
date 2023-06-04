@@ -6,7 +6,7 @@ class ArgParser(object):
     def __init__(self):
         parser = argparse.ArgumentParser()
         # Model related arguments
-        parser.add_argument('--id', default='withoutpos_phase_orinet_add_l2_and_time_SISNRloss_onehalvethree',                         # 改
+        parser.add_argument('--id', default='withoutpos_se_attention_at_bottomneck',                         # 改
                             help="a name for identifying the model")
         parser.add_argument('--num_mix', default=2, type=int,
                             help="number of sounds to mix")
@@ -63,7 +63,7 @@ class ArgParser(object):
                             help='number of gpus to use')
         parser.add_argument('--gpu_ids', type=str, default='0,1',
                             help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
-        parser.add_argument('--batch_size_per_gpu', default=28, type=int,
+        parser.add_argument('--batch_size_per_gpu', default=32, type=int,
                             help='input batch size')
         parser.add_argument('--workers', default=12, type=int,      # 改 原32 现12，不能开太大了，否则会占太多CPU
                             help='number of data loading workers')
@@ -89,7 +89,7 @@ class ArgParser(object):
         # Misc arguments
         parser.add_argument('--seed', default=1234, type=int,
                             help='manual seed')
-        parser.add_argument('--ckpt', default='./v3_ckpt_loss',
+        parser.add_argument('--ckpt', default='./v2_ckpt_attention',
                             help='folder to output checkpoints')
         parser.add_argument('--disp_iter', type=int, default=10,
                             help='frequency to display')

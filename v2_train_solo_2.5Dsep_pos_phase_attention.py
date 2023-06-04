@@ -3,7 +3,7 @@ import os
 import random
 import time
    
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 # Numerical libs
 import torch
@@ -99,7 +99,7 @@ class NetWrapper(torch.nn.Module):
         feat_frames = [None for n in range(N)]      # frame大小[32,32]
         feat_frames_ori = [None for n in range(N)]
         for n in range(N):
-            feat_frames[n], feat_frames_ori[n] = self.net_visual(Variable(frames[n], requires_grad=False))
+            feat_frames[n] = self.net_visual(Variable(frames[n], requires_grad=False))
             # feat_frames[n], feat_frames_ori[n] = self.net_visual(Variable(frames[n], requires_grad=False), Variable(position[n], requires_grad=False))      # 有pos
 
         # 1. forward net_sound -> BxCxHxW
@@ -111,8 +111,8 @@ class NetWrapper(torch.nn.Module):
         pred_masks = [None for n in range(N)]   # [32,1,256,256]
         pred_masks_r = [None for n in range(N)]
         for n in range(N):
-            pred_masks[n] = self.net_unet(torch.cat([log_mag_mix, IPD], dim=1), feat_frames[n], feat_frames_ori[n])
-            pred_masks_r[n] = self.net_unet(torch.cat([log_mag_mix_r, IPD], dim=1), feat_frames[n], feat_frames_ori[n])
+            pred_masks[n] = self.net_unet(torch.cat([log_mag_mix, IPD], dim=1), feat_frames[n])
+            pred_masks_r[n] = self.net_unet(torch.cat([log_mag_mix_r, IPD], dim=1), feat_frames[n])
 
         
         # 4. loss

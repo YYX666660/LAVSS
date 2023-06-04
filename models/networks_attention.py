@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import functools
 from einops import rearrange, repeat
-from .transformer import Transformer
 
 
+# cross attention
 class CrossAttention(nn.Module):
     def __init__(self, in_channels, emb_dim, att_dropout=0.0, aropout=0.0):
         super(CrossAttention, self).__init__()
@@ -55,6 +55,28 @@ class CrossAttention(nn.Module):
         out = self.proj_out(out)   # [batch_size, c, h, w]
 
         return out
+
+
+# SE
+class SE(nn.Module):
+    def __init__(self, c1, ratio=16):
+        super(SE, self).__init__()#c*1*1
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.l1 = nn.Linear(c1, c1 // ratio, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+        self.l2 = nn.Linear(c1 // ratio, c1, bias=False)
+        self.sig = nn.Sigmoid()
+        
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        y = self.avgpool(x).view(b, c)
+        y = self.l1(y)
+        y = self.relu(y)
+        y = self.l2(y)
+        y = self.sig(y)
+        y = y.view(b, c, 1, 1)
+        return x * y.expand_as(x)
+        
 
 def unet_conv(input_nc, output_nc, norm_layer=nn.BatchNorm2d):
     downconv = nn.Conv2d(input_nc, output_nc, kernel_size=4, stride=2, padding=1)
@@ -122,7 +144,6 @@ class Resnet18(nn.Module):
             x = F.adaptive_max_pool2d(x, 1)
         elif self.pool_type == 'conv1x1':
             x = self.conv1x1(x)             # [128,7,7]
-            x_ori = x
         else:
             return x #no pooling and conv1x1, directly return the feature map
 
@@ -131,7 +152,7 @@ class Resnet18(nn.Module):
             x = self.fc(x)
             if self.pool_type == 'conv1x1':
                 x = x.view(x.size(0), -1, 1, 1) #expand dimension if using conv1x1 + fc to reduce dimension  [512,1,1]
-            return x, x_ori
+            return x
         else:
             return x
 
@@ -156,13 +177,10 @@ class AudioVisual7layerUNet(nn.Module):
         self.audionet_upconvlayer6 = unet_upconv(ngf * 4, ngf)
         self.audionet_upconvlayer7 = unet_upconv(ngf * 2, output_nc, True) #outermost layer use a sigmoid to bound the mask
 
-        # attention layers
-        self.Transformer1 = Transformer(in_channels=512, emb_dim=128, dim_model=128, num_heads=2)
-        self.Transformer2 = Transformer(in_channels=512, emb_dim=128, dim_model=128, num_heads=2)
-        self.Transformer3 = Transformer(in_channels=512, emb_dim=128, dim_model=128, num_heads=2)
+        self.se_layer = SE(1024)
 
     # 加在上采样的block中
-    def forward(self, x, visual_feat, visual_feat_ori):
+    def forward(self, x, visual_feat):
         audio_conv1feature = self.audionet_convlayer1(x)
         audio_conv2feature = self.audionet_convlayer2(audio_conv1feature)
         audio_conv3feature = self.audionet_convlayer3(audio_conv2feature)
@@ -173,12 +191,10 @@ class AudioVisual7layerUNet(nn.Module):
 
         visual_feat = visual_feat.repeat(1, 1, audio_conv7feature.shape[2], audio_conv7feature.shape[3])        # [512,2,2]
         audioVisual_feature = torch.cat((visual_feat, audio_conv7feature), dim=1)
+        audioVisual_feature = self.se_layer(audioVisual_feature)
         audio_upconv1feature = self.audionet_upconvlayer1(audioVisual_feature)
-        audio_upconv1feature = self.Transformer1(visual_feat_ori, audio_upconv1feature)
         audio_upconv2feature = self.audionet_upconvlayer2(torch.cat((audio_upconv1feature, audio_conv6feature), dim=1))
-        audio_upconv2feature = self.Transformer2(visual_feat_ori, audio_upconv2feature)
         audio_upconv3feature = self.audionet_upconvlayer3(torch.cat((audio_upconv2feature, audio_conv5feature), dim=1))
-        audio_upconv3feature = self.Transformer3(visual_feat_ori, audio_upconv3feature)
         audio_upconv4feature = self.audionet_upconvlayer4(torch.cat((audio_upconv3feature, audio_conv4feature), dim=1))
         audio_upconv5feature = self.audionet_upconvlayer5(torch.cat((audio_upconv4feature, audio_conv3feature), dim=1))
         audio_upconv6feature = self.audionet_upconvlayer6(torch.cat((audio_upconv5feature, audio_conv2feature), dim=1))
