@@ -3,7 +3,7 @@ import os
 import random
 import time
    
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6,5,4,3"
 
 # Numerical libs
 import torch
@@ -49,7 +49,7 @@ class NetWrapper(torch.nn.Module):
         IPD = batch_data['phase_diff']
 
         # position
-        # position = batch_data['position']   # add
+        position = batch_data['position']   # add
 
         N = args.num_mix    #2
         B = mag_mix.size(0)     #32
@@ -97,10 +97,9 @@ class NetWrapper(torch.nn.Module):
 
         # 2. forward net_frame -> Bx1xC (左右都一样)
         feat_frames = [None for n in range(N)]      # frame大小[32,32]
-        feat_frames_ori = [None for n in range(N)]
         for n in range(N):
-            feat_frames[n] = self.net_visual(Variable(frames[n], requires_grad=False))
-            # feat_frames[n], feat_frames_ori[n] = self.net_visual(Variable(frames[n], requires_grad=False), Variable(position[n], requires_grad=False))      # 有pos
+            # feat_frames[n] = self.net_visual(Variable(frames[n], requires_grad=False))
+            feat_frames[n] = self.net_visual(Variable(frames[n], requires_grad=False), Variable(position[n], requires_grad=False))      # 有pos
 
         # 1. forward net_sound -> BxCxHxW
         # LOG magnitude
@@ -706,7 +705,7 @@ def main(args):
     
     # 3. Wrap networks:三个网络 L1标准
     netWrapper = NetWrapper(nets, crit)
-    device_id = [0,1,2] 
+    device_id = [0,1,2,3] 
     netWrapper = torch.nn.DataParallel(netWrapper, device_ids=device_id)      # 任意选gpu跑,[0,1]对应开头的["CUDA_VISIBLE_DEVICES"] = "3, 4"
     netWrapper.to(args.device)
     

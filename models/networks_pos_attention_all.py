@@ -151,7 +151,6 @@ class Resnet18(nn.Module):
             z = F.adaptive_max_pool2d(z, 1)
         elif self.pool_type == 'conv1x1':
             z = self.conv1x1(z)             # [128,7,7]
-            z_ori = z
         else:
             return z #no pooling and conv1x1, directly return the feature map
 
@@ -160,7 +159,7 @@ class Resnet18(nn.Module):
             z = self.fc(z)
             if self.pool_type == 'conv1x1':
                 z = z.view(z.size(0), -1, 1, 1) #expand dimension if using conv1x1 + fc to reduce dimension  [512,1,1]
-            return z, z_ori
+            return z
         else:
             return z
 
@@ -185,22 +184,15 @@ class AudioVisual7layerUNet(nn.Module):
         self.audionet_upconvlayer6 = unet_upconv(ngf * 4, ngf)
         self.audionet_upconvlayer7 = unet_upconv(ngf * 2, output_nc, True) #outermost layer use a sigmoid to bound the mask
 
-        # attention layers
-        self.attention = CrossAttention(in_channels=512, emb_dim=128)
-        # self.attention2 = CrossAttention(in_channels=512, emb_dim=128)
-        # self.attention3 = CrossAttention(in_channels=512, emb_dim=128)
 
-    def forward(self, x, visual_feat, visual_feat_ori):
+    def forward(self, x, visual_feat):
         audio_conv1feature = self.audionet_convlayer1(x)
         audio_conv2feature = self.audionet_convlayer2(audio_conv1feature)
         audio_conv3feature = self.audionet_convlayer3(audio_conv2feature)
         audio_conv4feature = self.audionet_convlayer4(audio_conv3feature)
         audio_conv5feature = self.audionet_convlayer5(audio_conv4feature)
-        audio_conv5feature = audio_conv5feature + self.attention(audio_conv5feature, visual_feat_ori)
         audio_conv6feature = self.audionet_convlayer6(audio_conv5feature)
-        audio_conv6feature = audio_conv6feature + self.attention(audio_conv6feature, visual_feat_ori)
         audio_conv7feature = self.audionet_convlayer7(audio_conv6feature)       # [512,2,2]
-        audio_conv7feature = audio_conv7feature + self.attention(audio_conv7feature, visual_feat_ori)
 
         visual_feat = visual_feat.repeat(1, 1, audio_conv7feature.shape[2], audio_conv7feature.shape[3])        # [512,2,2]
         audioVisual_feature = torch.cat((visual_feat, audio_conv7feature), dim=1)

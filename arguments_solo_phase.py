@@ -6,7 +6,7 @@ class ArgParser(object):
     def __init__(self):
         parser = argparse.ArgumentParser()
         # Model related arguments
-        parser.add_argument('--id', default='withoutpos_se_attention_three_down_block',                         # 改
+        parser.add_argument('--id', default='withoutpos_visual_pos_attention',                         # 改
                             help="a name for identifying the model")
         parser.add_argument('--num_mix', default=2, type=int,
                             help="number of sounds to mix")
@@ -50,12 +50,12 @@ class ArgParser(object):
         
         parser.add_argument('--visual_pool', type=str, default='conv1x1', help='avg/max pool or using a conv1x1 layer for visual stream feature')
         parser.add_argument('--classifier_pool', type=str, default='maxpool', help="avg or max pool for classifier stream feature")
-        parser.add_argument('--weights_visual', type=str, default='', help="weights for visual stream")
+        parser.add_argument('--weights_visual', type=str, default='v1_ckpt_phase/add_phase_diff_without_pos-2mix-LogFreq-resnet18dilated-unet7-linear-frames3stride20-maxpool-ratio-weightedLoss-channels32-epoch60-step40_60/frame_sdrbest.pth', help="weights for visual stream")
         parser.add_argument('--unet_num_layers', type=int, default=7, choices=(5, 7), help="unet number of layers")
         parser.add_argument('--unet_ngf', type=int, default=64, help="unet base channel dimension")
         parser.add_argument('--unet_input_nc', type=int, default=2, help="input spectrogram number of channels")
         parser.add_argument('--unet_output_nc', type=int, default=1, help="output spectrogram number of channels")
-        parser.add_argument('--weights_unet', type=str, default='', help="weights for unet")
+        parser.add_argument('--weights_unet', type=str, default='v1_ckpt_phase/add_phase_diff_without_pos-2mix-LogFreq-resnet18dilated-unet7-linear-frames3stride20-maxpool-ratio-weightedLoss-channels32-epoch60-step40_60/sound_sdrbest.pth', help="weights for unet")
         parser.add_argument('--number_of_classes', default=15, type=int, help='number of classes')
         
         # Data related arguments
