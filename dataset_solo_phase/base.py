@@ -124,7 +124,60 @@ class BaseDataset(torchdata.Dataset):
         img = Image.open(path).convert('RGB')
         return img    
 
-    ##### 2、取整个的frame+一小块的position
+    ##### 1、取一张小块的frame
+    # def _load_frames_det(self, paths, path_frames_ids,  path_frames_det):
+    #     det_res = np.load(path_frames_det)
+    #     frames = self._load_frame_det(paths[1], 1, det_res)
+    #     frames = self.img_transform(frames)
+    #     return frames   
+
+    # def _load_frame_det(self, path, id, det_res):
+
+    #     # load image
+    #     img = Image.open(path).convert('RGB')
+
+    #     bb = det_res[id, 3:]
+    #     # crop image
+    #     img = img.crop((bb[0], bb[1], bb[2], bb[3]))    # 此处把bounding box的区域切取出来了
+        
+    #     return img
+    
+
+    ##### 2、取一张小块的frame+一小块的position
+    # def _load_frames_det(self, paths, path_frames_ids,  path_frames_det):
+    #     det_res = np.load(path_frames_det)
+    #     frames = []     
+    #     position = []
+
+    #     # frame
+    #     N = len(paths)      # 几张图片
+    #     for n in range(N):
+    #         path = paths[n]
+    #         id = path_frames_ids[n]
+    #         frames.append(self._load_frame_det(path, n, det_res))      # 一帧的图片路径，编号，该视频对应的.npy文件
+        
+    #     frames = self.vid_transform(frames)
+
+    #     # position
+    #     pos = self._load_position_det(paths[0], 0, det_res)
+    #     position = self.transform_pos(pos)
+        
+
+    #     return frames, position
+
+    # def _load_frame_det(self, path, id, det_res):
+
+    #     # load image
+    #     img = Image.open(path).convert('RGB')
+
+    #     bb = det_res[id, 3:]
+    #     # crop image
+    #     img = img.crop((bb[0], bb[1], bb[2], bb[3]))    # 此处把bounding box的区域切取出来了
+        
+    #     return img
+
+
+    ##### 3、取整个的frame+一小块的position
     def _load_frames_det(self, paths, path_frames_ids,  path_frames_det):
         det_res = np.load(path_frames_det)
         position = []
@@ -150,6 +203,7 @@ class BaseDataset(torchdata.Dataset):
         img = img.crop((bb[0], bb[1], bb[2], bb[3]))    # 此处把bounding box的区域切取出来了
         
         return img
+
     
     def transform_pos(self, pos):
         pos = torch.from_numpy(pos)

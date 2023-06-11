@@ -33,23 +33,23 @@ class MUSICMixDataset(BaseDataset):
         # print(infos)
 
         # sample other videos:for train（不带乐器类别判断）
-        if not self.split == 'train':
-            random.seed(index)
-        for n in range(1, N):
-            indexN = random.randint(0, len(self.list_sample)-1)
-            infos[n] = self.list_sample[indexN]
-
-        # sample other videos:for test（带乐器类别判断）
         # if not self.split == 'train':
         #     random.seed(index)
         # for n in range(1, N):
         #     indexN = random.randint(0, len(self.list_sample)-1)
-        #     sample = self.list_sample[indexN]
-        #     while sample[3] in class_list:    # 如果已经有该类别了，就重新选其他类别，确保选取的两个info类别不重复！
-        #         indexN = random.randint(0, len(self.list_sample) - 1)
-        #         sample = self.list_sample[indexN]
-        #     infos[n] = sample
-        #     class_list.append(sample[3])      # 有2个值
+        #     infos[n] = self.list_sample[indexN]
+
+        # sample other videos:for test（带乐器类别判断）
+        if not self.split == 'train':
+            random.seed(index)
+        for n in range(1, N):
+            indexN = random.randint(0, len(self.list_sample)-1)
+            sample = self.list_sample[indexN]
+            while sample[3] not in class_list:    # 如果已经有该类别了，就重新选其他类别，确保选取的两个info类别不重复！
+                indexN = random.randint(0, len(self.list_sample) - 1)
+                sample = self.list_sample[indexN]
+            infos[n] = sample
+            class_list.append(sample[3])      # 有2个值
 
         # select frames 对frames进行操作
         idx_margin = max(
@@ -85,7 +85,7 @@ class MUSICMixDataset(BaseDataset):
         # load frames and audios, STFT
         try:
             for n, infoN in enumerate(infos):
-                # frames[n] = self._load_frames_det(path_frames[n], path_frames_ids[n], path_frames_det[n])
+                # frames[n] = self._load_frames(path_frames[n])     # 包含整块的frame
                 frames[n], position[n] = self._load_frames_det(path_frames[n], path_frames_ids[n], path_frames_det[n])   # 包含frame+position
                 # jitter audio
                 # center_timeN = (center_frames[n] - random.random()) / self.fps

@@ -3,93 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import functools
 from einops import rearrange, repeat
-
-
-# cross attention
-class CrossAttention(nn.Module):
-    def __init__(self, in_channels, emb_dim, att_dropout=0.0, aropout=0.0):
-        super(CrossAttention, self).__init__()
-        self.emb_dim = emb_dim
-        self.scale = emb_dim ** -0.5    
-        self.proj_in = nn.Conv2d(in_channels, emb_dim, kernel_size=1, stride=1, padding=0)
-
-        self.Wq = nn.Linear(emb_dim, emb_dim)
-        self.Wk = nn.Linear(emb_dim, emb_dim)
-        self.Wv = nn.Linear(emb_dim, emb_dim)
-
-        self.proj_out = nn.Conv2d(emb_dim, in_channels, kernel_size=1, stride=1, padding=0)
-
-    def forward(self, x, context, pad_mask=None):
-        '''
-
-        :param x: [batch_size, c, h, w]
-        :param context: [batch_szie, seq_len, emb_dim]
-        :param pad_mask: [batch_size, seq_len, seq_len]
-        :return:
-        '''
-        # reshape the context feature
-        b, c, h, w = context.shape
-        context = context.reshape(b, c, h*w).permute(0, 2, 1).contiguous()  # [b,c,h,w]->[b,n=(h*w),d=c]
-
-        b, c, h, w = x.shape
-
-        x = self.proj_in(x)   
-        x = rearrange(x, 'b c h w -> b (h w) c').contiguous()   
-
-        Q = self.Wq(x)  
-        K = self.Wk(context)  
-        V = self.Wv(context)
-
-        # [batch_size, h*w, seq_len]
-        att_weights = torch.einsum('bid,bjd -> bij', Q, K)
-        att_weights = att_weights * self.scale
-
-        if pad_mask is not None:
-            # [batch_size, h*w, seq_len]
-            att_weights = att_weights.masked_fill(pad_mask, -1e9)
-
-        att_weights = F.softmax(att_weights, dim=-1)
-        out = torch.einsum('bij, bjd -> bid', att_weights, V)   # [batch_size, h*w, emb_dim]
-
-        out = rearrange(out, 'b (h w) c -> b c h w', h=h, w=w).contiguous()   # [batch_size, c, h, w]
-        out = self.proj_out(out)   # [batch_size, c, h, w]
-
-        return out
-
-
-# SE
-class SE(nn.Module):
-    def __init__(self, c1, ratio=16):
-        super(SE, self).__init__()#c*1*1
-        self.avgpool = nn.AdaptiveAvgPool2d(1)
-        self.l1 = nn.Linear(c1, c1 // ratio, bias=False)
-        self.relu = nn.ReLU(inplace=True)
-        self.l2 = nn.Linear(c1 // ratio, c1, bias=False)
-        self.sig = nn.Sigmoid()
-        
-    def forward(self, x):
-        b, c, _, _ = x.size()
-        y = self.avgpool(x).view(b, c)
-        y = self.l1(y)
-        y = self.relu(y)
-        y = self.l2(y)
-        y = self.sig(y)
-        y = y.view(b, c, 1, 1)
-        return x * y.expand_as(x)
-
-class multi_scale_attention(nn.Module):
-    def __init__(self, c1):
-        super(multi_scale_attention, self).__init__()#c*1*1
-        self.half_conv = create_conv(1024, 512, 1, 0)
-        self.half_conv.apply(weights_init)
-        self.se = SE(c1)
-    
-    def forward(self, y, x):
-        y = y.repeat(1, 1, x.shape[2], x.shape[3])
-        x = torch.cat((y, x), dim=1)
-        x = self.half_conv(x)
-        x = self.se(x)
-        return x
+from .CrossFusion import CrossFusionModule
 
 
 def unet_conv(input_nc, output_nc, norm_layer=nn.BatchNorm2d):
@@ -152,21 +66,22 @@ class Resnet18(nn.Module):
     def forward(self, x):
         x = self.feature_extraction(x)      # [512,7,7]
 
-        if self.pool_type == 'avgpool':
-            x = F.adaptive_avg_pool2d(x, 1)
-        elif self.pool_type == 'maxpool':
-            x = F.adaptive_max_pool2d(x, 1)
-        elif self.pool_type == 'conv1x1':
-            x = self.conv1x1(x)             # [128,7,7]
-        else:
-            return x #no pooling and conv1x1, directly return the feature map
+        # if self.pool_type == 'avgpool':
+        #     x = F.adaptive_avg_pool2d(x, 1)
+        # elif self.pool_type == 'maxpool':
+        #     x = F.adaptive_max_pool2d(x, 1)
+        # elif self.pool_type == 'conv1x1':
+        #     x = self.conv1x1(x)             # [128,7,7]
+        #     x_ori = x
+        # else:
+        return x #no pooling and conv1x1, directly return the feature map
 
         if self.with_fc:
             x = x.view(x.size(0), -1)   # 128*7*7 = [6272]
             x = self.fc(x)
             if self.pool_type == 'conv1x1':
                 x = x.view(x.size(0), -1, 1, 1) #expand dimension if using conv1x1 + fc to reduce dimension  [512,1,1]
-            return x
+            return x_ori
         else:
             return x
 
@@ -191,9 +106,8 @@ class AudioVisual7layerUNet(nn.Module):
         self.audionet_upconvlayer6 = unet_upconv(ngf * 4, ngf)
         self.audionet_upconvlayer7 = unet_upconv(ngf * 2, output_nc, True) #outermost layer use a sigmoid to bound the mask
 
-        self.se_layer = SE(1024)
-        self.se_layer_6 = multi_scale_attention(512)
-        self.se_layer_5 = multi_scale_attention(512)
+        # cross attention
+        self.cross_attention = CrossFusionModule(hidden_dim=512, num_encoder_layers=1)
 
     # 加在上采样的block中
     def forward(self, x, visual_feat_ori):
@@ -205,14 +119,9 @@ class AudioVisual7layerUNet(nn.Module):
         audio_conv6feature = self.audionet_convlayer6(audio_conv5feature)       # [512,4,4]
         audio_conv7feature = self.audionet_convlayer7(audio_conv6feature)       # [512,2,2]
 
-        visual_feat = visual_feat_ori.repeat(1, 1, audio_conv7feature.shape[2], audio_conv7feature.shape[3])        # [512,2,2]
-        audioVisual_feature = torch.cat((visual_feat, audio_conv7feature), dim=1)
-        audioVisual_feature = self.se_layer(audioVisual_feature)
-
-        # 多尺度特征
-        audio_conv6feature = self.se_layer_6(visual_feat_ori, audio_conv6feature)
-        audio_conv5feature = self.se_layer_5(visual_feat_ori, audio_conv5feature)
-
+        # 融合AV特征
+        audio_multiscale = torch.cat([audio_conv5feature.flatten(2), audio_conv6feature.flatten(2), audio_conv7feature.flatten(2)], dim=2)
+        audioVisual_feature = self.cross_attention(audio_multiscale, visual_feat_ori)
         audio_upconv1feature = self.audionet_upconvlayer1(audioVisual_feature)
         audio_upconv2feature = self.audionet_upconvlayer2(torch.cat((audio_upconv1feature, audio_conv6feature), dim=1))
         audio_upconv3feature = self.audionet_upconvlayer3(torch.cat((audio_upconv2feature, audio_conv5feature), dim=1))

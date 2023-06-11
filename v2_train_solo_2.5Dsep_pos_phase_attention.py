@@ -705,7 +705,7 @@ def main(args):
     
     # 3. Wrap networks:三个网络 L1标准
     netWrapper = NetWrapper(nets, crit)
-    device_id = [0,1,2,3] 
+    device_id = [0,1,2] 
     netWrapper = torch.nn.DataParallel(netWrapper, device_ids=device_id)      # 任意选gpu跑,[0,1]对应开头的["CUDA_VISIBLE_DEVICES"] = "3, 4"
     netWrapper.to(args.device)
     
@@ -720,7 +720,7 @@ def main(args):
         'val': {'epoch': [], 'err': [], 'sdr': [], 'sir': [], 'sar': []}}
 
     # Eval mode
-    # evaluate(netWrapper, loader_val, history, 0, args)
+    evaluate(netWrapper, loader_val, history, 0, args)
     if args.mode == 'eval':
         print('Evaluation Done!')
         return
