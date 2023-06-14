@@ -20,8 +20,8 @@ class CrossFusionModule(nn.Module):
         self.conv_after_body_Fusion = nn.Conv2d(hidden_dim, hidden_dim, 3, 1, 1)
         self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True) # relu的一种变体
 
-        self.proj_out1 = nn.Conv1d(84, 49, kernel_size=3, stride=1, padding=1)
-        self.proj_out2 = nn.Conv1d(49, 4, kernel_size=3, stride=1, padding=1)
+        self.proj_out1 = nn.Conv1d(49, 336, kernel_size=3, stride=1, padding=1)
+        self.proj_out2 = nn.Conv1d(336, 256, kernel_size=5, stride=2, padding=2)
         
         
     def forward(self, x, y):
@@ -37,11 +37,11 @@ class CrossFusionModule(nn.Module):
         
         # [b,h*w,c]->[b,c,h,w]
         # 拼接
-        output_x = self.lrelu(self.proj_out1(output_x))
+        output_y = self.lrelu(self.proj_out1(output_y))
         x = torch.cat([output_x, output_y],2)
         x = self.lrelu(self.proj_out2(x))
 
-        x = x.permute(0,2,1).reshape([-1,1024,2,2])
+        x = x.permute(0,2,1).reshape([-1,512,16,16])
                 
         return x
         

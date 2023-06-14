@@ -3,7 +3,7 @@ import os
 import random
 import time
    
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,5,4,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2"
 
 # Numerical libs
 import torch
@@ -49,7 +49,7 @@ class NetWrapper(torch.nn.Module):
         IPD = batch_data['phase_diff']
 
         # position
-        position = batch_data['position']   # add
+        # position = batch_data['position']   # add
 
         N = args.num_mix    #2
         B = mag_mix.size(0)     #32
@@ -97,9 +97,10 @@ class NetWrapper(torch.nn.Module):
 
         # 2. forward net_frame -> Bx1xC (左右都一样)
         feat_frames = [None for n in range(N)]      # frame大小[32,32]
+        feat_frames_ori = [None for n in range(N)]  
         for n in range(N):
-            # feat_frames[n] = self.net_visual(Variable(frames[n], requires_grad=False))
-            feat_frames[n] = self.net_visual(Variable(frames[n], requires_grad=False), Variable(position[n], requires_grad=False))      # 有pos
+            feat_frames[n], feat_frames_ori[n] = self.net_visual(Variable(frames[n], requires_grad=False))
+            # feat_frames[n] = self.net_visual(Variable(frames[n], requires_grad=False), Variable(position[n], requires_grad=False))      # 有pos
 
         # 1. forward net_sound -> BxCxHxW
         # LOG magnitude
@@ -110,8 +111,8 @@ class NetWrapper(torch.nn.Module):
         pred_masks = [None for n in range(N)]   # [32,1,256,256]
         pred_masks_r = [None for n in range(N)]
         for n in range(N):
-            pred_masks[n] = self.net_unet(torch.cat([log_mag_mix, IPD], dim=1), feat_frames[n])
-            pred_masks_r[n] = self.net_unet(torch.cat([log_mag_mix_r, IPD], dim=1), feat_frames[n])
+            pred_masks[n] = self.net_unet(torch.cat([log_mag_mix, IPD], dim=1), feat_frames[n], feat_frames_ori[n])
+            pred_masks_r[n] = self.net_unet(torch.cat([log_mag_mix_r, IPD], dim=1), feat_frames[n], feat_frames_ori[n])
 
         
         # 4. loss
@@ -720,7 +721,7 @@ def main(args):
         'val': {'epoch': [], 'err': [], 'sdr': [], 'sir': [], 'sar': []}}
 
     # Eval mode
-    evaluate(netWrapper, loader_val, history, 0, args)
+    # evaluate(netWrapper, loader_val, history, 0, args)
     if args.mode == 'eval':
         print('Evaluation Done!')
         return

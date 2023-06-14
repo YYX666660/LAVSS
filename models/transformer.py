@@ -114,6 +114,11 @@ class TransformerDecoderLayer(nn.Module):
     ):
         super().__init__()
         dim_k = dim_v = dim_model // num_heads
+        self.attention_1 = Residual(
+            MultiHeadAttention(num_heads, dim_model, dim_k, dim_v),
+            dimension=dim_model,
+            dropout=dropout,
+        )
         self.attention_2 = Residual(
             MultiHeadAttention(num_heads, dim_model, dim_k, dim_v),
             dimension=dim_model,
@@ -126,6 +131,7 @@ class TransformerDecoderLayer(nn.Module):
         )
 
     def forward(self, tgt , memory ):
+        # tgt = self.attention_1(tgt, tgt, tgt)
         tgt = self.attention_2(tgt, memory, memory)     # [q,k,v]
         return self.feed_forward(tgt)
 
@@ -159,8 +165,9 @@ class TransformerDecoder(nn.Module):
 class Transformer(nn.Module):
     def __init__(
         self, 
-        num_decoder_layers: int = 2,  # MCT的层数
-        dim_model: int = 128, 
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        dim_model: int = 512, 
         num_heads: int = 6, 
         dim_feedforward: int = 2048, 
         dropout: float = 0.1, 
@@ -169,7 +176,13 @@ class Transformer(nn.Module):
         activation: nn.Module = nn.ReLU(),
     ):
         super().__init__()
-
+        self.encoder = TransformerEncoder(
+            num_layers=num_encoder_layers,
+            dim_model=dim_model,
+            num_heads=num_heads,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+        )
         self.decoder = TransformerDecoder(
             num_layers=num_decoder_layers,
             dim_model=dim_model,
@@ -177,9 +190,9 @@ class Transformer(nn.Module):
             dim_feedforward=dim_feedforward,
             dropout=dropout,
         )
-
-        self.proj_in = nn.Sequential(nn.Conv2d(in_channels, emb_dim, kernel_size=1, stride=1, padding=0), nn.ReLU())
-        self.proj_out = nn.Sequential(nn.Conv2d(emb_dim, in_channels, kernel_size=1, stride=1, padding=0), nn.ReLU())
+        
+        self.proj_in = nn.Conv2d(in_channels, emb_dim, kernel_size=1, stride=1, padding=0)
+        self.proj_out = nn.Conv2d(emb_dim, in_channels, kernel_size=1, stride=1, padding=0)
 
     def forward(self, src , tgt):
         # reshape the context feature
@@ -192,7 +205,7 @@ class Transformer(nn.Module):
         tgt = rearrange(tgt, 'b c h w -> b (h w) c').contiguous()   
 
         # transformer
-        out = self.decoder(tgt, src)
+        out = self.decoder(tgt, self.encoder(src))
 
         # reshape the out shape
         out = rearrange(out, 'b (h w) c -> b c h w', h=h, w=w).contiguous()   # [batch_size, c, h, w]

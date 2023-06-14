@@ -125,22 +125,22 @@ class BaseDataset(torchdata.Dataset):
         return img    
 
     ##### 1、取一张小块的frame
-    # def _load_frames_det(self, paths, path_frames_ids,  path_frames_det):
-    #     det_res = np.load(path_frames_det)
-    #     frames = self._load_frame_det(paths[1], 1, det_res)
-    #     frames = self.img_transform(frames)
-    #     return frames   
+    def _load_frames_det(self, paths, path_frames_ids,  path_frames_det):
+        det_res = np.load(path_frames_det)
+        frames = self._load_frame_det(paths[1], 1, det_res)
+        frames = self.img_transform(frames)
+        return frames   
 
-    # def _load_frame_det(self, path, id, det_res):
+    def _load_frame_det(self, path, id, det_res):
 
-    #     # load image
-    #     img = Image.open(path).convert('RGB')
+        # load image
+        img = Image.open(path).convert('RGB')
 
-    #     bb = det_res[id, 3:]
-    #     # crop image
-    #     img = img.crop((bb[0], bb[1], bb[2], bb[3]))    # 此处把bounding box的区域切取出来了
+        bb = det_res[id, 3:]
+        # crop image
+        img = img.crop((bb[0], bb[1], bb[2], bb[3]))    # 此处把bounding box的区域切取出来了
         
-    #     return img
+        return img
     
 
     ##### 2、取一张小块的frame+一小块的position
@@ -178,31 +178,31 @@ class BaseDataset(torchdata.Dataset):
 
 
     ##### 3、取整个的frame+一小块的position
-    def _load_frames_det(self, paths, path_frames_ids,  path_frames_det):
-        det_res = np.load(path_frames_det)
-        position = []
+    # def _load_frames_det(self, paths, path_frames_ids,  path_frames_det):
+    #     det_res = np.load(path_frames_det)
+    #     position = []
 
-        # frame
-        frames = self._load_frame(paths[1])
-        frames = self.img_transform(frames)
+    #     # frame
+    #     frames = self._load_frame(paths[1])
+    #     frames = self.img_transform(frames)
 
-        # position
-        pos = self._load_position_det(paths[1], 1, det_res)
-        position = self.transform_pos(pos)
+    #     # position
+    #     pos = self._load_position_det(paths[1], 1, det_res)
+    #     position = self.transform_pos(pos)
         
 
-        return frames, position
+    #     return frames, position
 
-    def _load_frame_det(self, path, id, det_res):
+    # def _load_frame_det(self, path, id, det_res):
 
-        # load image
-        img = Image.open(path).convert('RGB')
+    #     # load image
+    #     img = Image.open(path).convert('RGB')
 
-        bb = det_res[id, 3:]
-        # crop image
-        img = img.crop((bb[0], bb[1], bb[2], bb[3]))    # 此处把bounding box的区域切取出来了
+    #     bb = det_res[id, 3:]
+    #     # crop image
+    #     img = img.crop((bb[0], bb[1], bb[2], bb[3]))    # 此处把bounding box的区域切取出来了
         
-        return img
+    #     return img
 
     
     def transform_pos(self, pos):
