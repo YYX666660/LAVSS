@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import functools
 from einops import rearrange, repeat
+from .CrossFusion import CrossFusionModule
 
 
 class CrossAttention(nn.Module):
@@ -54,6 +55,7 @@ class CrossAttention(nn.Module):
         out = self.proj_out(out)   # [batch_size, c, h, w]
 
         return out
+    
 
 def unet_conv(input_nc, output_nc, norm_layer=nn.BatchNorm2d):
     downconv = nn.Conv2d(input_nc, output_nc, kernel_size=4, stride=2, padding=1)
@@ -90,14 +92,6 @@ def weights_init(m):
     elif classname.find('Linear') != -1:
         m.weight.data.normal_(0.0, 0.02)
 
-def my_conv(input_nc, output_nc, norm_layer=nn.BatchNorm2d, conv_size=3):
-    conv = torch.nn.Conv2d(input_nc, output_nc, kernel_size=7, stride=2, padding=conv_size)
-    conv.apply(weights_init)
-    pool = torch.nn.MaxPool2d(2)
-    relu = nn.ReLU(True)
-    norm = norm_layer(output_nc)
-    return nn.Sequential(*[conv, norm, relu, pool])
-
 class Resnet18(nn.Module):
     def __init__(self, original_resnet, pool_type='maxpool', input_channel=3, with_fc=False, fc_in=512, fc_out=512):
         super(Resnet18, self).__init__()
@@ -122,11 +116,6 @@ class Resnet18(nn.Module):
         if with_fc:
             self.fc = nn.Linear(fc_in, fc_out)
             self.fc.apply(weights_init)
-        
-        ###### add for position feature #####
-        self.pool = torch.nn.MaxPool2d(2)
-        self.my_conv1 = my_conv(64, 128)
-        self.my_conv2 = my_conv(128, 256)
 
         # add attention
         self.attenion_visual = CrossAttention(in_channels=512, emb_dim=512)
@@ -145,23 +134,23 @@ class Resnet18(nn.Module):
         # z = torch.cat([x, y], dim=1)
         z = x + y
         
-        if self.pool_type == 'avgpool':
-            z = F.adaptive_avg_pool2d(z, 1)
-        elif self.pool_type == 'maxpool':
-            z = F.adaptive_max_pool2d(z, 1)
-        elif self.pool_type == 'conv1x1':
-            z = self.conv1x1(z)             # [128,7,7]
-        else:
-            return z #no pooling and conv1x1, directly return the feature map
+        # if self.pool_type == 'avgpool':
+        #     z = F.adaptive_avg_pool2d(z, 1)
+        # elif self.pool_type == 'maxpool':
+        #     z = F.adaptive_max_pool2d(z, 1)
+        # elif self.pool_type == 'conv1x1':
+        #     z = self.conv1x1(z)             # [128,7,7]
+        # else:
+        #     return z #no pooling and conv1x1, directly return the feature map
 
-        if self.with_fc:
-            z = z.view(z.size(0), -1)   # 128*7*7 = [6272]
-            z = self.fc(z)
-            if self.pool_type == 'conv1x1':
-                z = z.view(z.size(0), -1, 1, 1) #expand dimension if using conv1x1 + fc to reduce dimension  [512,1,1]
-            return z
-        else:
-            return z
+        # if self.with_fc:
+        #     z = z.view(z.size(0), -1)   # 128*7*7 = [6272]
+        #     z = self.fc(z)
+        #     if self.pool_type == 'conv1x1':
+        #         z = z.view(z.size(0), -1, 1, 1) #expand dimension if using conv1x1 + fc to reduce dimension  [512,1,1]
+        #     return z
+        # else:
+        return z
 
 class AudioVisual7layerUNet(nn.Module):
     def __init__(self, ngf=64, input_nc=2, output_nc=2):
@@ -184,18 +173,22 @@ class AudioVisual7layerUNet(nn.Module):
         self.audionet_upconvlayer6 = unet_upconv(ngf * 4, ngf)
         self.audionet_upconvlayer7 = unet_upconv(ngf * 2, output_nc, True) #outermost layer use a sigmoid to bound the mask
 
+        # cross attention
+        self.cross_attention = CrossFusionModule(hidden_dim=512, num_encoder_layers=1)
 
-    def forward(self, x, visual_feat):
+    # 加在上采样的block中
+    def forward(self, x, visual_feat_ori):
         audio_conv1feature = self.audionet_convlayer1(x)
         audio_conv2feature = self.audionet_convlayer2(audio_conv1feature)
         audio_conv3feature = self.audionet_convlayer3(audio_conv2feature)
         audio_conv4feature = self.audionet_convlayer4(audio_conv3feature)
-        audio_conv5feature = self.audionet_convlayer5(audio_conv4feature)
-        audio_conv6feature = self.audionet_convlayer6(audio_conv5feature)
+        audio_conv5feature = self.audionet_convlayer5(audio_conv4feature)       # [512,8,8]
+        audio_conv6feature = self.audionet_convlayer6(audio_conv5feature)       # [512,4,4]
         audio_conv7feature = self.audionet_convlayer7(audio_conv6feature)       # [512,2,2]
 
-        visual_feat = visual_feat.repeat(1, 1, audio_conv7feature.shape[2], audio_conv7feature.shape[3])        # [512,2,2]
-        audioVisual_feature = torch.cat((visual_feat, audio_conv7feature), dim=1)
+        # 融合AV特征
+        audio_multiscale = torch.cat([audio_conv5feature.flatten(2), audio_conv6feature.flatten(2), audio_conv7feature.flatten(2)], dim=2)
+        audioVisual_feature = self.cross_attention(audio_multiscale, visual_feat_ori)
         audio_upconv1feature = self.audionet_upconvlayer1(audioVisual_feature)
         audio_upconv2feature = self.audionet_upconvlayer2(torch.cat((audio_upconv1feature, audio_conv6feature), dim=1))
         audio_upconv3feature = self.audionet_upconvlayer3(torch.cat((audio_upconv2feature, audio_conv5feature), dim=1))
@@ -204,6 +197,7 @@ class AudioVisual7layerUNet(nn.Module):
         audio_upconv6feature = self.audionet_upconvlayer6(torch.cat((audio_upconv5feature, audio_conv2feature), dim=1))
         mask_prediction = self.audionet_upconvlayer7(torch.cat((audio_upconv6feature, audio_conv1feature), dim=1))
         return mask_prediction
+
 
 class AudioVisual5layerUNet(nn.Module):
     def __init__(self, ngf=64, input_nc=2, output_nc=2):
