@@ -1,6 +1,6 @@
 import torch
 import torchvision
-from .networks_attention import Resnet18, AudioVisual5layerUNet, AudioVisual7layerUNet, weights_init
+from .networks_attention_all import Resnet18, AudioVisual5layerUNet, AudioVisual7layerUNet, weights_init
 
 
 class ModelBuilder():

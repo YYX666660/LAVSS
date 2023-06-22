@@ -85,8 +85,8 @@ class MUSICMixDataset(BaseDataset):
         # load frames and audios, STFT
         try:
             for n, infoN in enumerate(infos):
-                frames[n] = self._load_frames_det(path_frames[n], path_frames_ids[n], path_frames_det[n])
-                # frames[n], position[n] = self._load_frames_det(path_frames[n], path_frames_ids[n], path_frames_det[n])   # 包含frame+position
+                # frames[n] = self._load_frames_det(path_frames[n], path_frames_ids[n], path_frames_det[n])
+                frames[n], position[n] = self._load_frames_det(path_frames[n], path_frames_ids[n], path_frames_det[n])   # 包含frame+position
                 # jitter audio
                 # center_timeN = (center_frames[n] - random.random()) / self.fps
                 center_timeN = (center_frames[n] - 0.5) / self.fps      # 5.0625
@@ -107,8 +107,8 @@ class MUSICMixDataset(BaseDataset):
             mag_mix, mags, frames, audios_l, phase_mix = \
                 self.dummy_mix_data(N)
 
-        ret_dict = {'mag_mix': mag_mix, 'frames': frames, 'mags': mags, 'mag_mix_r': mag_mix_r, 'mags_r': mags_r, 'phase_diff': phase_diff}
-        # ret_dict = {'mag_mix': mag_mix, 'frames': frames, 'mags': mags, 'mag_mix_r': mag_mix_r, 'mags_r': mags_r, 'position': position, 'phase_diff': phase_diff}
+        # ret_dict = {'mag_mix': mag_mix, 'frames': frames, 'mags': mags, 'mag_mix_r': mag_mix_r, 'mags_r': mags_r, 'phase_diff': phase_diff}
+        ret_dict = {'mag_mix': mag_mix, 'frames': frames, 'mags': mags, 'mag_mix_r': mag_mix_r, 'mags_r': mags_r, 'position': position, 'phase_diff': phase_diff}
         if self.split != 'train':
             ret_dict['audios'] = audios_l
             ret_dict['phase_mix'] = phase_mix

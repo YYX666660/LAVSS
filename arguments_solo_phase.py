@@ -6,7 +6,7 @@ class ArgParser(object):
     def __init__(self):
         parser = argparse.ArgumentParser()
         # Model related arguments
-        parser.add_argument('--id', default='withoutpos_sq_cross_attention_up_5e-4',                         # 改
+        parser.add_argument('--id', default='withpos_sq_cross_attention_then_concat_MLP_finetune_5e-5_1e-4',                         # 改
                             help="a name for identifying the model")
         parser.add_argument('--num_mix', default=2, type=int,
                             help="number of sounds to mix")
@@ -50,12 +50,12 @@ class ArgParser(object):
         
         parser.add_argument('--visual_pool', type=str, default='conv1x1', help='avg/max pool or using a conv1x1 layer for visual stream feature')
         parser.add_argument('--classifier_pool', type=str, default='maxpool', help="avg or max pool for classifier stream feature")
-        parser.add_argument('--weights_visual', type=str, default='', help="weights for visual stream")
+        parser.add_argument('--weights_visual', type=str, default='v2_ckpt_attention/withoutpos_sq_cross_attention_then_concat_5e-4_musicpre-2mix-LogFreq-resnet18dilated-unet7-linear-frames3stride20-maxpool-ratio-weightedLoss-channels32-epoch60-step40_60/frame_best.pth', help="weights for visual stream")
         parser.add_argument('--unet_num_layers', type=int, default=7, choices=(5, 7), help="unet number of layers")
         parser.add_argument('--unet_ngf', type=int, default=64, help="unet base channel dimension")
         parser.add_argument('--unet_input_nc', type=int, default=2, help="input spectrogram number of channels")
         parser.add_argument('--unet_output_nc', type=int, default=1, help="output spectrogram number of channels")
-        parser.add_argument('--weights_unet', type=str, default='', help="weights for unet")
+        parser.add_argument('--weights_unet', type=str, default='v2_ckpt_attention/withoutpos_sq_cross_attention_then_concat_5e-4_musicpre-2mix-LogFreq-resnet18dilated-unet7-linear-frames3stride20-maxpool-ratio-weightedLoss-channels32-epoch60-step40_60/sound_best.pth', help="weights for unet")
         parser.add_argument('--number_of_classes', default=15, type=int, help='number of classes')
         
         # Data related arguments
@@ -118,11 +118,11 @@ class ArgParser(object):
         parser.add_argument('--lr_synthesizer',
                             default=1e-3, type=float, help='LR')
 
-        parser.add_argument('--lr_visual', type=float, default=1e-4, help='learning rate for visual stream')
-        parser.add_argument('--lr_unet', type=float, default=5e-4, help='learning rate for unet')
+        parser.add_argument('--lr_visual', type=float, default=5e-5, help='learning rate for visual stream')
+        parser.add_argument('--lr_unet', type=float, default=1e-4, help='learning rate for unet')
 
         parser.add_argument('--lr_steps',
-                            nargs='+', type=int, default=[40, 60],
+                            nargs='+', type=int, default=[15, 30],
                             help='steps to drop LR in epochs')          # 改 原来是[40,60]
         parser.add_argument('--learning_rate_decrease_itr', type=int, default=5, help='how often is the learning rate decreased by six percent')
         parser.add_argument('--decay_factor', type=float, default=0.9, help='learning rate decay factor')
@@ -155,7 +155,7 @@ class ArgParser(object):
 #     def __init__(self):
 #         parser = argparse.ArgumentParser()
 #         # Model related arguments
-#         parser.add_argument('--id', default='withpos_visual_pos_attention_fintune-2mix-LogFreq-resnet18dilated-unet7-linear-frames3stride20-maxpool-ratio-weightedLoss-channels32-epoch60-step15_30',                         # 改
+#         parser.add_argument('--id', default='withpos_sq_cross_attention_then_concat_MLP_finetune_5e-5_1e-4-2mix-LogFreq-resnet18dilated-unet7-linear-frames3stride20-maxpool-ratio-weightedLoss-channels32-epoch60-step15_30',                         # 改
 #                             help="a name for identifying the model")
 #         parser.add_argument('--num_mix', default=2, type=int,
 #                             help="number of sounds to mix")
