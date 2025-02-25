@@ -78,3 +78,14 @@ The frames and detection results used in the paper can be downloaded from this l
 
 ## Acknowledgement
 We borrowed a lot of code from [SoP](URL "https://github.com/hangzhaomit/Sound-of-Pixels") and [CCoL](URL "https://github.com/YapengTian/CCOL-CVPR21"), and used detector from Ruohan' [CoSep](URL "https://github.com/rhgao/co-separation"). We thank the authors for sharing their code. If you use our codes, please also cite their nice works.
+
+## Citation
+```
+@inproceedings{ye2024lavss,
+  title={Lavss: Location-guided audio-visual spatial audio separation},
+  author={Ye, Yuxin and Yang, Wenming and Tian, Yapeng},
+  booktitle={Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision},
+  pages={5508--5519},
+  year={2024}
+}
+```
